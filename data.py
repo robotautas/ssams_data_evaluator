@@ -14,14 +14,21 @@ class Data:
         self.data = None
 
     def fetch(self):
+        resp = ''
         try:
             resp = requests.get(URL, timeout=3).text
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print("Error: ", e)
-            return
+            print("Failed to fetch data, loading from file")
+            with open("example.html", "r") as f:
+                resp = f.read()
+            
 
+        print("RESP: ", resp)
         raw_data = resp.split("<pre>")[1].split("</pre>")[0]
+        
         self.data = raw_data
+
 
     def column_widths(self, length_determining_line) -> list[int]:
         # grab line like ..=== ==== ================ == = ... and get the lengths of the columns
@@ -96,8 +103,6 @@ class Data:
             .astype(float)
         )
 
-
-
         return df
 
     def get_groups(self) -> dict[str, pd.DataFrame]:
@@ -113,12 +118,10 @@ class Data:
             group["13/12new"] = (
                 group["Meas"] * slope + intercept
             )  # veiksmas visai grupei
-            # group["13/12new"] = group["13/12new"].round(4)  # apvalinimas
-            # stulpelis "13/12new" yra pagalbinis sekantiems veiksmams:
+
             group["13/12 corr"] = _13_12he_column * (
                 _13_12he_column.mean() / group["13/12new"]
             )
-            # group["13/12 corr"] = group["13/12 corr"].round(4)
 
             group["14/12corr"] = (
                 group["14/12he"] * (_13_12he_column.mean() / group["13/12new"]) ** 2

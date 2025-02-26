@@ -16,7 +16,9 @@ groups = data.get_groups()
 
 fig = go.Figure()
 
-oxii_13_12_corr_columns = []
+
+oxii_13_12_corr_columns = {}
+# oxii_13_12_corr_means = []
 for item, df in groups.items():
     if df["Sample Name"].iloc[0].lower().startswith("oxii"):
         fig.add_trace(
@@ -27,10 +29,18 @@ for item, df in groups.items():
                 name=f"sample {item}",
             )
         )
-        oxii_13_12_corr_columns.append(df["13/12 corr"])
+        new_column_name = df["Sample Name"].iloc[0]
+        reindexed_series = df['13/12 corr'].reset_index(drop=True)
+        reindexed_series.index = reindexed_series.index + 1
+        oxii_13_12_corr_columns[new_column_name] = reindexed_series
 
-y_mean = np.mean(oxii_13_12_corr_columns, axis=0)
-print(f'YYYYYYYYYYYYYYYYYYYYYYYYY: {y_mean}')
+
+
+oxii_12_13_corr_df = pd.concat(oxii_13_12_corr_columns, axis=1)
+oxii_12_13_corr_df.columns = oxii_13_12_corr_columns.keys()
+df_for_trend = oxii_12_13_corr_df.T
+print(df_for_trend)
+
 
 
 
