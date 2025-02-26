@@ -1,8 +1,11 @@
 import requests
 import pandas as pd
+import numpy as np
 from datetime import datetime
 
+
 URL = "http://172.16.176.40/csquery.php?act=dose&list=results_time"
+# pd.options.display.float_format = '{:.4e}'.format
 
 
 class Data:
@@ -93,15 +96,38 @@ class Data:
             .astype(float)
         )
 
-        print(df.dtypes)
-        print(df)
+
 
         return df
 
-    def test_rows(self) -> None:  # ant i6metimo
-        lines = self.data.split("\n")
-        for row in lines[:30]:
-            print("eilute", row)
+    def get_groups(self) -> dict[str, pd.DataFrame]:
+
+        df = self.get_dataframe()
+        groups = df.groupby("Item")
+        groups_dict = {name: group for name, group in groups}
+
+        # kiekviena grupe yra dataframe atskirai lentelei atvaizduoti
+        for group in groups_dict.values():
+            _13_12he_column = group["13/12he"]
+            slope, intercept = np.polyfit(group["Meas"], _13_12he_column, 1)
+            group["13/12new"] = (
+                group["Meas"] * slope + intercept
+            )  # veiksmas visai grupei
+            # group["13/12new"] = group["13/12new"].round(4)  # apvalinimas
+            # stulpelis "13/12new" yra pagalbinis sekantiems veiksmams:
+            group["13/12 corr"] = _13_12he_column * (
+                _13_12he_column.mean() / group["13/12new"]
+            )
+            # group["13/12 corr"] = group["13/12 corr"].round(4)
+
+            group["14/12corr"] = (
+                group["14/12he"] * (_13_12he_column.mean() / group["13/12new"]) ** 2
+            )
+            group["14/13corr"] = group["14/13he"] * (
+                _13_12he_column.mean() / group["13/12new"]
+            )
+
+        return groups_dict
 
     def __repr__(self):
         return self.data
