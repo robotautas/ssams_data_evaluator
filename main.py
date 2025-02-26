@@ -39,7 +39,18 @@ for item, df in groups.items():
 oxii_12_13_corr_df = pd.concat(oxii_13_12_corr_columns, axis=1)
 oxii_12_13_corr_df.columns = oxii_13_12_corr_columns.keys()
 df_for_trend = oxii_12_13_corr_df.T
+df_for_trend.columns = range(1, len(df_for_trend.columns) + 1)
+
+meas_means = []
+
+for column in df_for_trend.columns:
+    meas_means.append(df_for_trend[column].mean())
+
+
 print(df_for_trend)
+print(meas_means)
+
+
 
 
 

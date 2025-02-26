@@ -24,7 +24,6 @@ class Data:
                 resp = f.read()
             
 
-        print("RESP: ", resp)
         raw_data = resp.split("<pre>")[1].split("</pre>")[0]
         
         self.data = raw_data
