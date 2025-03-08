@@ -1,3 +1,4 @@
+from statistics import mean
 import requests
 import pandas as pd
 import numpy as np
@@ -109,6 +110,7 @@ class Data:
         df = self.get_dataframe()
         groups = df.groupby("Item")
         groups_dict = {name: group for name, group in groups}
+        oxii_means = []
 
         # kiekviena grupe yra dataframe atskirai lentelei atvaizduoti
         for group in groups_dict.values():
@@ -125,10 +127,20 @@ class Data:
             group["14/12corr"] = (
                 group["14/12he"] * (_13_12he_column.mean() / group["13/12new"]) ** 2
             )
+            
             group["14/13corr"] = group["14/13he"] * (
-                _13_12he_column.mean() / group["13/12new"]
+                group["13/12new"] / _13_12he_column.mean()
             )
 
+            if group["Sample Name"].iloc[0].lower().startswith("oxii"):
+                oxii_means.append(group["13/12 corr"].mean())
+
+
+            # group["d13c"] = (
+            #     ((()))
+            # )
+
+        groups_dict["mean_oxii_13_12"] = mean(oxii_means)
         return groups_dict
 
     def __repr__(self):

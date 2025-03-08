@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from dash_table.Format import Format, Scheme
+from dash.dependencies import Input, Output
 
 
 data = Data()
@@ -17,29 +18,28 @@ original_groups = groups.copy()
 def apply_correction_to_groups(original_groups, correction_factor):
     """Apply correction factor to all relevant isotope ratio columns."""
     modified_groups = {}
+
     
     for key, df in original_groups.items():
+        if not isinstance(df, pd.DataFrame):
+            continue
         # Create a deep copy to avoid modifying the original
         modified_df = df.copy()
         
         # Apply correction factor to 13/12 corr
         if '13/12 corr' in modified_df.columns:
             # Correction can be additive or multiplicative depending on your needs
+
             # Additive:
-            modified_df['13/12 corr'] = modified_df['13/12 corr'] + (correction_factor * 0.001)  # Adjust scale factor as needed
-            
-            # If 14/12corr depends on 13/12 corr, recalculate it
-            if '14/12corr' in modified_df.columns:
-                # Example recalculation (adjust formula as per your specific calculation)
-                modified_df['14/12corr'] = recalculate_14_12(modified_df['14/12corr'], 
-                                                            df['13/12 corr'], 
-                                                            modified_df['13/12 corr'])
-            
-            # If 14/13corr depends on 13/12 corr and 14/12corr, recalculate it
-            if '14/13corr' in modified_df.columns and '14/12corr' in modified_df.columns:
-                modified_df['14/13corr'] = modified_df['14/12corr'] / modified_df['13/12 corr']
+            # print(modified_df.columns)
+            modified_df['13/12 corr'] = modified_df['13/12he'] * ((modified_df['13/12he'].mean() / modified_df['13/12new'])**correction_factor)
+            modified_df['14/12corr'] = modified_df['14/12he'] * ((modified_df['13/12he'].mean() / modified_df['13/12new'])**(correction_factor*2))
+            modified_df['14/13corr'] = modified_df['14/13he'] * ((modified_df['13/12new']/modified_df['13/12he'].mean())**correction_factor)
+
         
         modified_groups[key] = modified_df
+
+    # RECAKLCULATE MEAN OXII 13/12!!!!
     
     return modified_groups
 
@@ -51,6 +51,10 @@ def generate_figure(groups, correction_factor):
     # Process and plot OXII data
     oxii_13_12_corr_columns = {}
     for item, df in groups.items():
+
+        if not isinstance(df, pd.DataFrame):
+            continue
+
         if df["Sample Name"].iloc[0].lower().startswith("oxii"):
             fig.add_trace(
                 go.Scatter(
@@ -93,7 +97,17 @@ def generate_figure(groups, correction_factor):
         title=f"13/12 Analysis with Correction Factor: {correction_factor}",
         xaxis_title="Measurement",
         yaxis_title="13/12 corr",
-        legend_title="Samples"
+        legend_title="Samples",
+        legend=dict(
+            orientation="h",            # horizontal orientation
+            yanchor="bottom",           # anchor point
+            y=1.02,                     # position above the chart (1.0 is top of chart)
+            xanchor="center",           # anchor point 
+            x=0.5,                      # centered horizontally
+            bgcolor="rgba(255,255,255,0.8)",  
+            bordercolor="Black",        
+            borderwidth=1               
+        )
     )
     
     return fig
@@ -149,7 +163,7 @@ float_columns = [
 def generate_tables(groups):
     """Generate tables with corrected data."""
     hidden_columns = ["13/12new", "E", "Run Completion Time", "Grp", "Sample Name 2", 'bias', 'stripPR', 'FacTR']
-
+    print(groups)
     tables = [
         html.Div(
             [
@@ -177,12 +191,12 @@ def generate_tables(groups):
             ],
             style={"margin-bottom": "20px"},
         )
-        for df in groups.values()
+        for key, df in groups.items() if key != 'mean_oxii_13_12' and isinstance(df, pd.DataFrame)
     ]
     return tables
 
 tables = generate_tables(groups)
-fig = generate_figure(groups, 0)
+fig = generate_figure(groups, 1)
 
 # Updated app layout
 app.layout = html.Div(
@@ -219,11 +233,11 @@ app.layout = html.Div(
                                 html.Label("13/12 Correction Factor (‰):"),
                                 dcc.Slider(
                                     id='correction-slider',
-                                    min=-10,
-                                    max=10,
-                                    step=0.5,
-                                    value=0,
-                                    marks={i: f"{i}" for i in range(-10, 11, 2)},
+                                    min=0,
+                                    max=2,
+                                    step=0.01,
+                                    value=1,
+                                    marks={i: f"{i}" for i in range(0, 2, 1)},
                                 ),
                             ],
                             className="slider-container"
@@ -243,6 +257,25 @@ app.layout = html.Div(
     ],
     className="app-container"
 )
+
+@app.callback(
+    [Output('main-graph', 'figure'),
+     Output('tables-container', 'children')],
+    Input('correction-slider', 'value')
+)
+def update_data_with_correction(correction_factor):
+    # Apply correction factor (slider value) to data
+    modified_groups = apply_correction_to_groups(original_groups, correction_factor)
+    
+    # Regenerate plot and tables with modified data
+    new_fig = generate_figure(modified_groups, correction_factor)
+    new_tables = generate_tables(modified_groups)
+    
+    # Wrap each table in a div with className="data-table"
+    table_components = [html.Div([table], className="data-table") for table in new_tables]
+    
+    return new_fig, table_components
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=8001)
