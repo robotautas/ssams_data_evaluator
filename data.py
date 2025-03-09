@@ -49,7 +49,6 @@ class Data:
 
     # def get_column_names(self) -> list:
     #     column_line = self.data.split("\n")[5]
-    #     print(self.get_row_data(column_line))
 
     def get_dataframe(self) -> pd.DataFrame:
         lines = self.data.split("\n")

@@ -1,3 +1,4 @@
+import time
 from data import Data
 from dash import Dash, dash_table, html, dcc
 import plotly.graph_objs as go
@@ -31,7 +32,6 @@ def apply_correction_to_groups(original_groups, correction_factor):
             # Correction can be additive or multiplicative depending on your needs
 
             # Additive:
-            # print(modified_df.columns)
             modified_df['13/12 corr'] = modified_df['13/12he'] * ((modified_df['13/12he'].mean() / modified_df['13/12new'])**correction_factor)
             modified_df['14/12corr'] = modified_df['14/12he'] * ((modified_df['13/12he'].mean() / modified_df['13/12new'])**(correction_factor*2))
             modified_df['14/13corr'] = modified_df['14/13he'] * ((modified_df['13/12new']/modified_df['13/12he'].mean())**correction_factor)
@@ -61,7 +61,7 @@ def generate_figure(groups, correction_factor):
                     x=df["Meas"],
                     y=df["13/12 corr"],
                     mode="lines+markers",
-                    name=f"sample {item}",
+                    name=f"{df['Item'].iloc[0]}.{df['Sample Name'].iloc[0]}",
                 )
             )
             new_column_name = df["Sample Name"].iloc[0]
@@ -94,10 +94,10 @@ def generate_figure(groups, correction_factor):
     
     # Add title showing the correction factor
     fig.update_layout(
-        title=f"13/12 Analysis with Correction Factor: {correction_factor}",
+        # title=f"13/12 Analysis with Correction Factor: {correction_factor}",
         xaxis_title="Measurement",
         yaxis_title="13/12 corr",
-        legend_title="Samples",
+        # legend_title="Samples",
         legend=dict(
             orientation="h",            # horizontal orientation
             yanchor="bottom",           # anchor point
@@ -162,12 +162,11 @@ float_columns = [
 
 def generate_tables(groups):
     """Generate tables with corrected data."""
-    hidden_columns = ["13/12new", "E", "Run Completion Time", "Grp", "Sample Name 2", 'bias', 'stripPR', 'FacTR']
-    print(groups)
+    hidden_columns = ["13/12new", "E", "Run Completion Time", "Grp", "Sample Name 2", 'bias', 'stripPR', 'FacTR', 'Item', 'Sample Name']
     tables = [
         html.Div(
             [
-                html.P(f"{df['Sample Name'].iloc[0]}"),
+                html.H5(f"{df['Item'].iloc[0]}.{df['Sample Name'].iloc[0]}:"),
                 dash_table.DataTable(
                     df.to_dict("records"),
                     [
@@ -238,6 +237,10 @@ app.layout = html.Div(
                                     step=0.01,
                                     value=1,
                                     marks={i: f"{i}" for i in range(0, 2, 1)},
+                                    tooltip={
+                                        "always_visible": True,
+                                        "style": {"color": "LightSteelBlue", "fontSize": "20px"},
+                                        },
                                 ),
                             ],
                             className="slider-container"
@@ -264,6 +267,8 @@ app.layout = html.Div(
     Input('correction-slider', 'value')
 )
 def update_data_with_correction(correction_factor):
+    start_time = time.time()
+
     # Apply correction factor (slider value) to data
     modified_groups = apply_correction_to_groups(original_groups, correction_factor)
     
@@ -274,9 +279,12 @@ def update_data_with_correction(correction_factor):
     # Wrap each table in a div with className="data-table"
     table_components = [html.Div([table], className="data-table") for table in new_tables]
     
+    end_time = time.time()
+    total_time = end_time - start_time
+    print(f"Total time: {total_time}")
+
     return new_fig, table_components
 
 
 if __name__ == "__main__":
     app.run(debug=True, port=8001)
-    print(groups)
